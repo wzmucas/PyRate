@@ -89,13 +89,14 @@ def chunks(jobs, size):
     Returns:
 
     """
-    n = int(round(len(jobs) / size, 0))
-    # handle edge case: n <<< size
-    if n == 0:
-        n = 1
-    jobs = [jobs[i * n: (i + 1) * n] for i in range((len(jobs) + n - 1) // n)]
+    if size <= 0:
+        raise Exception("Size of mpi processes must be greater then zero. Give size: "+str(size))
 
-    for i in range(size - len(jobs)):
-        jobs.append([])
+    chunked_jobs = []
+    for i in range(size):
+        chunked_jobs.append([])
 
-    return jobs
+    for i, job in enumerate(jobs):
+        chunked_jobs[i%size].append(job)
+
+    return chunked_jobs

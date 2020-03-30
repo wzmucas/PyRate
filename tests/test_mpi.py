@@ -61,7 +61,6 @@ legacy_maxvar = [
     5.62802362442017,
 ]
 
-
 @pytest.fixture()
 def tempdir():
     """tempdir for tests"""
@@ -78,7 +77,7 @@ def random_filename(tmpdir_factory):
     """
 
     Args:
-      tmpdir_factory: 
+      tmpdir_factory:
 
     Returns:
 
@@ -115,7 +114,7 @@ def get_config():
         """
 
         Args:
-          conf_file: 
+          conf_file:
 
         Returns:
 
@@ -132,7 +131,7 @@ def mpisync(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -152,7 +151,7 @@ def roipac_or_gamma(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -165,7 +164,7 @@ def ref_est_method(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -178,7 +177,7 @@ def row_splits(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -191,7 +190,7 @@ def col_splits(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -205,8 +204,8 @@ def modify_config(request, tempdir, get_config):
 
     Args:
       request: param tempdir:
-      get_config: 
-      tempdir: 
+      get_config:
+      tempdir:
 
     Returns:
 
@@ -230,7 +229,7 @@ def get_lks(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -243,7 +242,7 @@ def get_crop(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -294,7 +293,7 @@ def orbfit_lks(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -307,7 +306,7 @@ def orbfit_method(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -320,7 +319,7 @@ def orbfit_degrees(request):
     """
 
     Args:
-      request: 
+      request:
 
     Returns:
 
@@ -333,8 +332,8 @@ def _tifs_same(dir1, dir2, tif):
 
     Args:
       dir1: param dir2:
-      tif: 
-      dir2: 
+      tif:
+      dir2:
 
     Returns:
 
@@ -351,9 +350,9 @@ def test_prepifg_mpi(mpisync, get_config, tempdir, roipac_or_gamma, get_lks, get
       mpisync: param get_config:
       tempdir: param roipac_or_gamma:
       get_lks: param get_crop:
-      get_config: 
-      roipac_or_gamma: 
-      get_crop: 
+      get_config:
+      roipac_or_gamma:
+      get_crop:
 
     Returns:
 
@@ -400,3 +399,19 @@ def test_prepifg_mpi(mpisync, get_config, tempdir, roipac_or_gamma, get_lks, get
 
         shutil.rmtree(outdir)
         shutil.rmtree(params_s[cf.OUT_DIR])
+
+
+def test_chuck():
+    jobs = []
+    for job in range(20):
+        jobs.append(job)
+        for size in range(1, 15):
+
+            result = mpiops.chunks(jobs, size)
+
+            merged_array = []
+            for sub_array in result:
+                merged_array = merged_array + sub_array
+
+            assert set(jobs) == set(merged_array)
+            assert size == len(result)

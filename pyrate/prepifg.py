@@ -87,12 +87,14 @@ def main(params):
         # optional DEM conversion
         if params["dem_file"] is not None:
             jobs.append((params["dem_file"].converted_path, params["dem_file"].sampled_path, extents, params, "dem"))
+        log.debug("Total size of jobs to be processed: " + str(len(jobs)))
         jobs = chunks(jobs, size)
+
     else:
         jobs = None
 
     jobs = comm.scatter(jobs, root=0)
-
+    log.debug("Size of jobs being processed: " + str(len(jobs)))
     for job in jobs:
         _prepifg_multiprocessing(*job)
 
