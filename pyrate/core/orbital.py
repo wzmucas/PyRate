@@ -132,10 +132,12 @@ def crop_resample_average(
                 pass
             elif v == ifc.MULTILOOKED and coherence_path:
                 md.update({ifc.DATA_TYPE:ifc.COHERENCE})
+            elif v == ifc.COHERENCE and not coherence_path:
+                pass
             elif v == ifc.MULTILOOKED and not coherence_path:
                 pass
             else:
-                raise TypeError('Data Type metadata not recognised')
+                raise TypeError('Data Type metadata not recognised key: '+str(k)+' value: '+str(v) )
 
     # In-memory GDAL driver doesn't support compression so turn it off.
     creation_opts = ['compress=packbits'] if out_driver_type != 'MEM' else []
