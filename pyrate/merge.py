@@ -17,19 +17,20 @@
 This Python module does post-processing steps to assemble the
 rate and time series outputs and save as geotiff files
 """
-import os
-import pathlib
 import pickle as cp
 import subprocess
 from os.path import join
-
-import numpy as np
-from osgeo import gdal
 
 from constants import REF_COLOR_MAP_PATH
 from core import shared, ifgconstants as ifc, mpiops, config as cf
 from core.logger import pyratelogger as log
 from core.shared import PrereadIfg
+import os
+from osgeo import gdal, gdalconst
+from configuration import Configuration
+import numpy as np
+import math
+import pathlib
 
 gdal.SetCacheMax(64)
 
@@ -63,6 +64,72 @@ def main(params):
     create_png_from_tif(output_folder_path)
     log.debug("Finished creating quicklook images.")
 
+    log.debug("Start adding ref pixel information to geotiff metadata")
+    config_file = os.path.abspath("/home/sheece/Desktop/Projects/PyRate/sample_data/input_parameters.conf")
+    params = Configuration(config_file).__dict__
+    sampled_interferogram = params["interferogram_files"][0].sampled_path
+    source_dataset = gdal.Open(sampled_interferogram, gdal.GA_Update)
+    source_metadata = source_dataset.GetMetadata()
+    pyrate_refpix_x = int(source_metadata["PYRATE_REFPIX_X"])
+    pyrate_refpix_y = int(source_metadata["PYRATE_REFPIX_Y"])
+    pyrate_refpix_lat = float(source_metadata["PYRATE_REFPIX_LAT"])
+    pyrate_refpix_lon = float(source_metadata["PYRATE_REFPIX_LON"])
+    wavelength = float(source_metadata["WAVELENGTH_METRES"])
+    # manual close dataset
+    source_dataset = None
+    del source_dataset
+
+    tscuml_files = list(pathlib.Path(params["outdir"]).glob('tscuml_*.tif'))
+    update_ifg_metadata(tscuml_files, pyrate_refpix_x, pyrate_refpix_y, pyrate_refpix_lat, pyrate_refpix_lon,
+                        wavelength, params)
+    stack_file = list(pathlib.Path(params["outdir"]).glob('stack_*.tif'))
+    update_ifg_metadata(stack_file, pyrate_refpix_x, pyrate_refpix_y, pyrate_refpix_lat, pyrate_refpix_lon, wavelength,
+                        params)
+
+
+def update_ifg_metadata(dataset_paths, pyrate_refpix_x, pyrate_refpix_y, pyrate_refpix_lat, pyrate_refpix_lon, wavelength, params):
+    for dataset_path in dataset_paths:
+        dataset_path = str(dataset_path)
+        log.debug("Updating metadata for: "+dataset_path)
+
+        dataset = gdal.Open(dataset_path, gdalconst.GA_Update)
+        phase_data = dataset.GetRasterBand(1).ReadAsArray()
+
+        log.debug("Update no data values in dataset")
+
+        # convert to nans
+        phase_data = np.where(np.isclose(phase_data, params["noDataValue"], atol=1e-6), np.nan, phase_data)
+
+        # convert radians to mm
+        MM_PER_METRE = 1000
+        phase_data = phase_data * MM_PER_METRE * (wavelength / (4 * math.pi))
+
+        half_patch_size = params["refchipsize"] // 2
+        x, y = pyrate_refpix_x, pyrate_refpix_y
+
+        log.debug("Extract reference pixel windows")
+        data = np.array(phase_data)[y - half_patch_size: y + half_patch_size + 1, x - half_patch_size: x + half_patch_size + 1]
+
+        log.debug("Calculate standard deviation for reference window")
+        standard_deviation_ref_area = np.std(data[~np.isnan(data)])
+        mean_ref_area = np.mean(data[~np.isnan(data)])
+
+        metadata = dataset.GetMetadata()
+        metadata.update({
+            'NAN_STATUS': "CONVERTED",
+            'DATA_UNITS': "MILLIMETRES",
+            'PYRATE_REFPIX_X': str(pyrate_refpix_x),
+            'PYRATE_REFPIX_Y': str(pyrate_refpix_y),
+            'PYRATE_REFPIX_LAT': str(pyrate_refpix_lat),
+            'PYRATE_REFPIX_LON': str(pyrate_refpix_lon),
+            'PYRATE_MEAN_REF_AREA': str(mean_ref_area),
+            'PYRATE_STANDARD_DEVIATION_REF_AREA': str(standard_deviation_ref_area)
+        })
+        dataset.SetMetadata(metadata)
+
+        # manual close dataset
+        dataset = None
+        del dataset
 
 def create_png_from_tif(output_folder_path):
     """
