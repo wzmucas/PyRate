@@ -65,8 +65,6 @@ def main(params):
     log.debug("Finished creating quicklook images.")
 
     log.debug("Start adding ref pixel information to geotiff metadata")
-    config_file = os.path.abspath("/home/sheece/Desktop/Projects/PyRate/sample_data/input_parameters.conf")
-    params = Configuration(config_file).__dict__
     sampled_interferogram = params["interferogram_files"][0].sampled_path
     source_dataset = gdal.Open(sampled_interferogram, gdal.GA_Update)
     source_metadata = source_dataset.GetMetadata()
